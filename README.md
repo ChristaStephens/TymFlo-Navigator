@@ -1,4 +1,4 @@
-# TymFlo Navigator — Dayna Foster Dashboard
+# TymFlo Navigator - Dayna Foster Dashboard
 
 A live operating dashboard for Dayna Foster's **Home Help Agency Ownership Education** business.
 
