@@ -24,6 +24,7 @@ const METRIC_ROWS: MetricRowDef[] = [
   { key: "coursePurchases", label: "Course Purchases", note: "Most important" },
   { key: "revenue", label: "Revenue ($)", note: "Total collected" },
   { key: "referrals", label: "Referrals" },
+  { key: "recurringMembers", label: "Monthly Community Members", note: "Phase 3: Grow" },
 ];
 
 function statusDot(actual: number, goal: number, lowerIsBetter = false) {
