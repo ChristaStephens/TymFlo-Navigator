@@ -1,15 +1,18 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Zap, ArrowRight, CheckCircle2, Target, Clock } from "lucide-react";
+import { Zap, ArrowRight, CheckCircle2, Target, Clock, ChevronRight } from "lucide-react";
 import {
   DashboardState,
   TASK_DEFS,
+  PHASES,
   getTaskData,
-  getActiveTaskIndex,
   getCompletedTaskCount,
   getSubtaskCompletion,
+  getCurrentPhase,
+  getPhaseProgress,
   gatesMet,
+  isPhaseComplete,
 } from "@/lib/dashboard-state";
 
 interface HomeTabProps {
@@ -38,12 +41,26 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 export default function HomeTab({ state, onNavigate }: HomeTabProps) {
-  const activeIdx = getActiveTaskIndex(state);
-  const activeTask = TASK_DEFS[activeIdx];
-  const activeTd = getTaskData(state, activeTask.id);
   const completedCount = getCompletedTaskCount(state);
+  const currentPhase = getCurrentPhase(state);
+  const { done: phaseDone, total: phaseTotal } = getPhaseProgress(state);
+
+  // "Next Priority" is always scoped to the current phase — never bleeds into later phases
+  const currentPhaseTasks = TASK_DEFS.filter((t) => t.phase === currentPhase.number);
+  const activeTask = currentPhaseTasks.find(
+    (t) => getTaskData(state, t.id).status !== "complete"
+  ) ?? currentPhaseTasks[currentPhaseTasks.length - 1];
+  const activeTd = getTaskData(state, activeTask.id);
   const { done: subtasksDone, total: subtasksTotal } = getSubtaskCompletion(state, activeTask.id);
-  const allComplete = completedCount === TASK_DEFS.length;
+
+  // "All done" only when every phase has tasks complete AND gates met
+  const allComplete = PHASES.every((p) => isPhaseComplete(state, p));
+
+  // Current-phase tasks all done (gates may or may not be met)
+  const currentPhaseTasksDone = currentPhaseTasks.every(
+    (t) => getTaskData(state, t.id).status === "complete"
+  );
+
   const phaseUnlocked = gatesMet(state);
 
   const metrics = state.metrics;
@@ -51,9 +68,19 @@ export default function HomeTab({ state, onNavigate }: HomeTabProps) {
   const hoursThisWeek = state.hoursThisWeek;
   const revenuePerHour = hoursThisWeek > 0 ? (totalRevenue / hoursThisWeek).toFixed(0) : null;
 
+  // Determine status of each phase for the roadmap strip.
+  // "complete" = tasks done AND gates met; "active" = current phase (may have unmet gates).
+  function getPhaseStatus(phaseNum: number): "complete" | "active" | "upcoming" {
+    const phase = PHASES.find((p) => p.number === phaseNum)!;
+    if (isPhaseComplete(state, phase) && phaseNum < currentPhase.number) return "complete";
+    if (phaseNum === currentPhase.number) return "active";
+    if (phaseNum < currentPhase.number) return "active"; // tasks done but gates blocked — still show as active
+    return "upcoming";
+  }
+
   return (
     <div className="space-y-6">
-      {/* Greeting banner */}
+      {/* ── Greeting banner ──────────────────────────────────────────────── */}
       <Card className="bg-tymflo-purple text-white border-0 shadow-md">
         <CardContent className="p-6">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -61,9 +88,11 @@ export default function HomeTab({ state, onNavigate }: HomeTabProps) {
               <p className="text-purple-200 text-sm font-medium mb-1">
                 {getGreeting()}, Dayna 👋
               </p>
-              <h2 className="text-2xl font-bold font-heading">You're in: VALIDATE</h2>
+              <h2 className="text-2xl font-bold font-heading">
+                You're in: {currentPhase.name}
+              </h2>
               <p className="text-purple-200 text-sm mt-1">
-                Phase 1 of 4 · {completedCount} of {TASK_DEFS.length} priorities complete
+                Phase {currentPhase.number} of {PHASES.length} &bull; {completedCount} of {TASK_DEFS.length} priorities complete
               </p>
             </div>
             <div className="flex gap-3">
@@ -86,50 +115,216 @@ export default function HomeTab({ state, onNavigate }: HomeTabProps) {
             </div>
           </div>
 
-          {/* Progress bar */}
+          {/* Phase progress bar */}
           <div className="mt-5">
             <div className="flex justify-between text-xs text-purple-200 mb-1">
-              <span>Phase 1 Progress</span>
-              <span>{Math.round((completedCount / TASK_DEFS.length) * 100)}%</span>
+              <span>Phase {currentPhase.number}: {currentPhase.name} Progress</span>
+              <span>{phaseDone}/{phaseTotal} tasks</span>
             </div>
             <div className="w-full bg-white/20 rounded-full h-2">
               <div
                 className="bg-tymflo-tangerine rounded-full h-2 transition-all duration-500"
-                style={{ width: `${(completedCount / TASK_DEFS.length) * 100}%` }}
+                style={{ width: `${phaseTotal > 0 ? (phaseDone / phaseTotal) * 100 : 0}%` }}
               />
             </div>
           </div>
         </CardContent>
       </Card>
 
+      {/* ── 12-Month Roadmap strip ───────────────────────────────────────── */}
+      <div>
+        <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3 font-heading">
+          12-Month Roadmap
+        </h3>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          {PHASES.map((phase, i) => {
+            const status = getPhaseStatus(phase.number);
+            const phaseTasks = TASK_DEFS.filter((t) => t.phase === phase.number);
+            const phaseCompletedCount = phaseTasks.filter(
+              (t) => getTaskData(state, t.id).status === "complete"
+            ).length;
+
+            return (
+              <div
+                key={phase.number}
+                className={`relative rounded-xl p-4 border-2 transition-all ${
+                  status === "active"
+                    ? "border-tymflo-purple bg-tymflo-purple-light"
+                    : status === "complete"
+                    ? "border-green-300 bg-green-50"
+                    : "border-gray-200 bg-gray-50 opacity-60"
+                }`}
+              >
+                {/* Phase number + status badge */}
+                <div className="flex items-center justify-between mb-2">
+                  <span
+                    className={`text-xs font-bold uppercase tracking-widest font-heading ${
+                      status === "active"
+                        ? "tymflo-purple"
+                        : status === "complete"
+                        ? "text-green-700"
+                        : "text-gray-400"
+                    }`}
+                  >
+                    Phase {phase.number}
+                  </span>
+                  {status === "complete" && (
+                    <CheckCircle2 size={14} className="text-green-500 flex-shrink-0" />
+                  )}
+                  {status === "active" && (
+                    <span className="text-[10px] bg-tymflo-purple text-white rounded-full px-2 py-0.5 font-semibold">
+                      Active
+                    </span>
+                  )}
+                  {status === "upcoming" && (
+                    <span className="text-[10px] bg-gray-200 text-gray-500 rounded-full px-2 py-0.5">
+                      Upcoming
+                    </span>
+                  )}
+                </div>
+
+                {/* Phase name */}
+                <h4
+                  className={`font-bold font-heading text-sm mb-0.5 ${
+                    status === "active"
+                      ? "text-tymflo-purple"
+                      : status === "complete"
+                      ? "text-green-800"
+                      : "text-gray-400"
+                  }`}
+                >
+                  {phase.name}
+                </h4>
+                <p
+                  className={`text-[11px] font-medium mb-2 ${
+                    status === "upcoming" ? "text-gray-400" : "text-gray-500"
+                  }`}
+                >
+                  {phase.months}
+                </p>
+
+                {/* Goal summary */}
+                <p
+                  className={`text-xs leading-relaxed ${
+                    status === "upcoming" ? "text-gray-400" : "text-gray-600"
+                  }`}
+                >
+                  {phase.goalSummary}
+                </p>
+
+                {/* Task progress within phase */}
+                {status !== "upcoming" && phaseTasks.length > 0 && (
+                  <div className="mt-3">
+                    <div className="flex justify-between text-[10px] text-gray-500 mb-1">
+                      <span>{phaseCompletedCount}/{phaseTasks.length} tasks</span>
+                    </div>
+                    <div className="w-full bg-white/60 rounded-full h-1">
+                      <div
+                        className={`rounded-full h-1 transition-all ${
+                          status === "complete" ? "bg-green-500" : "bg-tymflo-tangerine"
+                        }`}
+                        style={{ width: `${(phaseCompletedCount / phaseTasks.length) * 100}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Arrow between phases */}
+                {i < PHASES.length - 1 && (
+                  <div className="hidden lg:block absolute -right-3 top-1/2 -translate-y-1/2 z-10">
+                    <ChevronRight size={16} className="text-gray-300" />
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
       {allComplete ? (
-        /* All done state */
+        /* ── All phases done and all gates met ─────────────────────────── */
         <Card className="border-green-200 shadow-sm">
           <CardContent className="p-6 text-center">
             <div className="text-4xl mb-3">🎉</div>
             <h3 className="text-xl font-bold text-green-700 font-heading mb-2">
-              Phase 1 Priorities Complete!
+              All Priorities Complete!
             </h3>
             <p className="text-gray-600 text-sm">
-              Check your Results tab to see if you've met the Phase 2 decision gates.
+              All tasks are done and all gate criteria are met. Incredible work.
             </p>
-            {phaseUnlocked ? (
-              <div className="mt-4 p-3 bg-green-50 rounded-lg border border-green-200">
-                <p className="text-green-800 font-semibold text-sm">
-                  ✅ All gate criteria met — you're ready to move into Phase 2: Refine!
-                </p>
-              </div>
-            ) : (
-              <div className="mt-4 p-3 bg-yellow-50 rounded-lg border border-yellow-200">
-                <p className="text-yellow-800 text-sm">
-                  ⚠️ Some gate criteria haven't been met yet. Stay in Validate until demand is sufficiently tested.
-                </p>
-              </div>
-            )}
+          </CardContent>
+        </Card>
+      ) : currentPhaseTasksDone && !phaseUnlocked ? (
+        /* ── Current-phase tasks done but gates NOT yet met ────────────── */
+        <Card className="border-2 border-yellow-300 shadow-sm bg-yellow-50/40">
+          <CardContent className="p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <CheckCircle2 size={20} className="text-yellow-500" />
+              <span className="text-xs font-semibold text-yellow-700 uppercase tracking-wide font-heading">
+                Tasks Done — Gates Needed Before Advancing
+              </span>
+            </div>
+            <h3 className="text-xl font-bold text-gray-900 font-heading mb-2">
+              {currentPhase.name} tasks are complete.
+            </h3>
+            <p className="text-gray-600 text-sm mb-4">
+              You've finished all the work in Phase {currentPhase.number}, but the decision gates below haven't been met yet.
+              Stay in <strong>{currentPhase.name}</strong> and focus on hitting those numbers before moving to{" "}
+              <strong>{currentPhase.nextPhaseName}</strong>.
+            </p>
+            <div className="space-y-2 mb-4">
+              {currentPhase.gates.map((g, i) => {
+                const met = g.taskId
+                  ? getTaskData(state, g.taskId).status === "complete"
+                  : g.metricKey
+                  ? (state.metrics[g.metricKey].actual ?? 0) >= g.target
+                  : true;
+                return (
+                  <div key={i} className="flex items-center gap-3 text-sm">
+                    <span className={met ? "text-green-500" : "text-gray-300"}>{met ? "✅" : "⬜"}</span>
+                    <span className={met ? "text-green-800 line-through" : "text-gray-700"}>{g.label}</span>
+                  </div>
+                );
+              })}
+            </div>
+            <Button
+              onClick={() => onNavigate("results")}
+              variant="outline"
+              className="border-yellow-400 text-yellow-800 hover:bg-yellow-100 font-heading"
+            >
+              Update Results
+              <ArrowRight size={16} className="ml-2" />
+            </Button>
+          </CardContent>
+        </Card>
+      ) : currentPhaseTasksDone && phaseUnlocked && currentPhase.nextPhaseName ? (
+        /* ── Tasks done AND gates met — ready to advance ───────────────── */
+        <Card className="border-2 border-green-400 shadow-sm bg-green-50/40">
+          <CardContent className="p-6">
+            <div className="flex items-center gap-2 mb-3">
+              <CheckCircle2 size={20} className="text-green-500" />
+              <span className="text-xs font-semibold text-green-700 uppercase tracking-wide font-heading">
+                Phase {currentPhase.number} Complete
+              </span>
+            </div>
+            <h3 className="text-xl font-bold text-gray-900 font-heading mb-2">
+              ✅ You're ready for Phase {currentPhase.number + 1}: {currentPhase.nextPhaseName}
+            </h3>
+            <p className="text-gray-600 text-sm">
+              All tasks are done and all gate criteria are met. Head to the Plan tab to start your{" "}
+              {currentPhase.nextPhaseName} priorities.
+            </p>
+            <Button
+              onClick={() => onNavigate("plan")}
+              className="mt-4 bg-green-600 hover:bg-green-700 text-white font-heading"
+            >
+              Start {currentPhase.nextPhaseName}
+              <ArrowRight size={16} className="ml-2" />
+            </Button>
           </CardContent>
         </Card>
       ) : (
-        /* Next priority card */
+        /* ── Next priority in the current phase ────────────────────────── */
         <Card className="border-2 border-tymflo-purple shadow-sm">
           <CardContent className="p-6">
             <div className="flex items-start justify-between gap-4 mb-4">
@@ -192,7 +387,7 @@ export default function HomeTab({ state, onNavigate }: HomeTabProps) {
         </Card>
       )}
 
-      {/* Quick stats row */}
+      {/* ── Quick stats row ──────────────────────────────────────────────── */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         {[
           {
@@ -243,7 +438,7 @@ export default function HomeTab({ state, onNavigate }: HomeTabProps) {
                   )}
                 </div>
                 <div className="text-2xl font-bold font-heading text-gray-900">
-                  {stat.isText ? stat.value : stat.value}
+                  {stat.value}
                 </div>
                 <div className="text-xs text-gray-500 mt-0.5">{stat.label}</div>
                 {pct !== null && (
@@ -262,45 +457,57 @@ export default function HomeTab({ state, onNavigate }: HomeTabProps) {
         })}
       </div>
 
-      {/* Phase 2 gate preview */}
-      <Card className="shadow-sm border border-gray-200">
-        <CardContent className="p-6">
-          <h3 className="font-semibold text-gray-900 font-heading mb-1 flex items-center gap-2">
-            <CheckCircle2 size={18} className="text-gray-400" />
-            Phase 2 Decision Gate
-          </h3>
-          <p className="text-xs text-gray-500 mb-4">
-            Complete these before moving to Refine. The goal is to confirm real demand — not just complete tasks.
-          </p>
-          <div className="space-y-2">
-            {[
-              { label: "At least 10 guide downloads", met: metrics.guideDownloads.actual >= 10, actual: metrics.guideDownloads.actual },
-              { label: "At least 5 class registrations", met: metrics.classRegistrations.actual >= 5, actual: metrics.classRegistrations.actual },
-              { label: "At least 1 paid course customer", met: metrics.coursePurchases.actual >= 1, actual: metrics.coursePurchases.actual },
-              { label: "Customer feedback collected (mark in Plan tab)", met: getTaskData(state, "pilot-group").status === "complete", actual: null },
-            ].map((g, i) => (
-              <div key={i} className="flex items-center gap-3 text-sm">
-                <span className={g.met ? "text-green-500" : "text-gray-300"}>
-                  {g.met ? "✅" : "⬜"}
-                </span>
-                <span className={g.met ? "text-green-800 line-through" : "text-gray-700"}>
-                  {g.label}
-                </span>
-                {g.actual !== null && !g.met && (
-                  <span className="text-gray-400 text-xs ml-auto">{g.actual} so far</span>
-                )}
-              </div>
-            ))}
-          </div>
-          {!phaseUnlocked && (
-            <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-              <p className="text-xs text-yellow-800">
-                <strong>Stay in Validate.</strong> Demand has not been sufficiently tested yet. Focus on getting more qualified people into the introductory class before investing in additional technology.
-              </p>
+      {/* ── Phase Decision Gate ──────────────────────────────────────────── */}
+      {currentPhase.gates.length > 0 && (
+        <Card className="shadow-sm border border-gray-200">
+          <CardContent className="p-6">
+            <h3 className="font-semibold text-gray-900 font-heading mb-1 flex items-center gap-2">
+              <CheckCircle2 size={18} className="text-gray-400" />
+              Phase {currentPhase.number + 1}: {currentPhase.nextPhaseName} — Decision Gate
+            </h3>
+            <p className="text-xs text-gray-500 mb-4">
+              Complete these before moving to {currentPhase.nextPhaseName}. The goal is to confirm real progress — not just complete tasks.
+            </p>
+            <div className="space-y-2">
+              {currentPhase.gates.map((g, i) => {
+                const met = g.taskId
+                  ? getTaskData(state, g.taskId).status === "complete"
+                  : g.metricKey
+                  ? (state.metrics[g.metricKey].actual ?? 0) >= g.target
+                  : true;
+                const actual = g.metricKey ? state.metrics[g.metricKey].actual : null;
+                return (
+                  <div key={i} className="flex items-center gap-3 text-sm">
+                    <span className={met ? "text-green-500" : "text-gray-300"}>
+                      {met ? "✅" : "⬜"}
+                    </span>
+                    <span className={met ? "text-green-800 line-through" : "text-gray-700"}>
+                      {g.label}
+                    </span>
+                    {actual !== null && !met && (
+                      <span className="text-gray-400 text-xs ml-auto">{actual} so far</span>
+                    )}
+                  </div>
+                );
+              })}
             </div>
-          )}
-        </CardContent>
-      </Card>
+            {!phaseUnlocked && (
+              <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <p className="text-xs text-yellow-800">
+                  <strong>Stay in {currentPhase.name}.</strong> Focus on meeting the criteria above before moving forward.
+                </p>
+              </div>
+            )}
+            {phaseUnlocked && currentPhase.nextPhaseName && (
+              <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+                <p className="text-green-800 font-semibold text-sm">
+                  ✅ All gate criteria met — you're ready to move into Phase {currentPhase.number + 1}: {currentPhase.nextPhaseName}!
+                </p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
