@@ -1,6 +1,7 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Route, Eye, BookOpen, ShoppingCart, Headphones, Share2 } from "lucide-react";
 import { DashboardState } from "@/lib/dashboard-state";
+import andreaPhoto from "@assets/image_1787066029819.png";
 
 interface CustomersTabProps {
   state: DashboardState;
@@ -180,44 +181,71 @@ export default function CustomersTab({ state }: CustomersTabProps) {
         </CardContent>
       </Card>
 
-      {/* Persona card — compact */}
+      {/* Persona card — the real person behind the journey */}
       <Card className="shadow-sm border border-gray-200">
         <CardContent className="p-6">
-          <h3 className="font-semibold text-gray-900 font-heading mb-4">
-            Who You're Talking To: Andrea, 38
-          </h3>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
-            <div className="bg-green-50 border border-green-200 rounded-xl p-4">
-              <h4 className="font-semibold text-green-800 mb-2">Goals</h4>
-              <ul className="space-y-1 text-green-700 text-xs">
-                {[
-                  "Leave bedside care",
-                  "Control her schedule",
-                  "Create an additional income source",
-                  "Build a business that doesn't depend on her doing all the work",
-                ].map((g, i) => <li key={i}>✓ {g}</li>)}
-              </ul>
+          {/* Section header */}
+          <div className="mb-5">
+            <h3 className="text-lg font-semibold text-gray-900 font-heading">
+              The Person Behind the Journey
+            </h3>
+            <p className="text-sm text-gray-600 mt-1">
+              Every stage above was designed around someone specific. A <span className="font-medium text-gray-800">customer persona</span> puts a face and a story to that person — so your content, offers, and messaging speak directly to her instead of to everyone.
+            </p>
+          </div>
+
+          {/* Photo + name badge + attribute cards */}
+          <div className="flex flex-col sm:flex-row gap-6 items-start">
+            {/* Photo */}
+            <div className="flex-shrink-0 flex flex-col items-center sm:items-start">
+              <div className="w-32 h-40 sm:w-36 sm:h-48 rounded-2xl overflow-hidden shadow-md border-2 border-purple-100">
+                <img
+                  src={andreaPhoto}
+                  alt="Andrea — Ideal Client Persona"
+                  className="w-full h-full object-cover object-top"
+                />
+              </div>
+              <div className="mt-3 text-center sm:text-left">
+                <p className="font-bold text-gray-900 font-heading text-base">Andrea, 38</p>
+                <p className="text-xs text-gray-500">Registered Nurse · Detroit, MI</p>
+                <p className="text-xs text-tymflo-purple italic mt-0.5">Your ideal first customer</p>
+              </div>
             </div>
-            <div className="bg-red-50 border border-red-200 rounded-xl p-4">
-              <h4 className="font-semibold text-red-800 mb-2">Pains</h4>
-              <ul className="space-y-1 text-red-700 text-xs">
-                {[
-                  "Burned out from long shifts",
-                  "Never owned a business",
-                  "Doesn't know where to start",
-                  "Limited time to research",
-                ].map((p, i) => <li key={i}>• {p}</li>)}
-              </ul>
-            </div>
-            <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-              <h4 className="font-semibold text-blue-800 mb-2">She's Searching For</h4>
-              <ul className="space-y-1.5 text-blue-700 text-xs">
-                {[
-                  '"What businesses can nurses start?"',
-                  '"How to leave bedside nursing?"',
-                  '"Healthcare business in Michigan?"',
-                ].map((q, i) => <li key={i} className="italic">{q}</li>)}
-              </ul>
+
+            {/* Attribute cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 flex-1 text-sm w-full">
+              <div className="bg-green-50 border border-green-200 rounded-xl p-4">
+                <h4 className="font-semibold text-green-800 mb-2">What She Wants</h4>
+                <ul className="space-y-1 text-green-700 text-xs">
+                  {[
+                    "Leave bedside care",
+                    "Control her schedule",
+                    "Create an additional income source",
+                    "Build a business that doesn't depend on her doing all the work",
+                  ].map((g, i) => <li key={i}>✓ {g}</li>)}
+                </ul>
+              </div>
+              <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+                <h4 className="font-semibold text-red-800 mb-2">What's Holding Her Back</h4>
+                <ul className="space-y-1 text-red-700 text-xs">
+                  {[
+                    "Burned out from long shifts",
+                    "Never owned a business",
+                    "Doesn't know where to start",
+                    "Limited time to research",
+                  ].map((p, i) => <li key={i}>• {p}</li>)}
+                </ul>
+              </div>
+              <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+                <h4 className="font-semibold text-blue-800 mb-2">How She Finds You</h4>
+                <ul className="space-y-1.5 text-blue-700 text-xs">
+                  {[
+                    '"What businesses can nurses start?"',
+                    '"How to leave bedside nursing?"',
+                    '"Healthcare business in Michigan?"',
+                  ].map((q, i) => <li key={i} className="italic">{q}</li>)}
+                </ul>
+              </div>
             </div>
           </div>
         </CardContent>
