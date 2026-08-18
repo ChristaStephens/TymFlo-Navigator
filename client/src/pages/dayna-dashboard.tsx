@@ -30,7 +30,7 @@ export default function DaynaDashboard() {
 
   return (
     <div className="min-h-screen bg-tymflo-gray flex flex-col">
-      <DaynaHeader />
+      <DaynaHeader onGoHome={() => setActiveTab("home")} />
       <NavTabs active={activeTab} onChange={setActiveTab} />
 
       <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8">
