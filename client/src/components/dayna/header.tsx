@@ -1,18 +1,26 @@
 import tymfloLogo from "@assets/Tymflo-horizontal-crlPng_1755805562259.png";
 
-export default function DaynaHeader() {
+interface DaynaHeaderProps {
+  onGoHome: () => void;
+}
+
+export default function DaynaHeader({ onGoHome }: DaynaHeaderProps) {
   return (
     <header className="bg-white shadow-sm border-b border-gray-200">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Desktop Layout */}
         <div className="hidden md:flex items-center justify-between py-4">
-          {/* Logo + tagline stacked on left */}
-          <div className="flex-shrink-0">
+          {/* Logo + tagline — clickable, goes to Home */}
+          <button
+            onClick={onGoHome}
+            className="flex-shrink-0 text-left hover:opacity-80 transition-opacity focus:outline-none"
+            aria-label="Go to Home"
+          >
             <img src={tymfloLogo} alt="TymFlo Logo" className="h-12" />
             <p className="text-xs tymflo-purple font-heading italic mt-0.5 pl-0.5">
-              "Less Work. More Flo."
+              Less Work. More Flo.
             </p>
-          </div>
+          </button>
 
           {/* Title block */}
           <div className="flex-1 min-w-0 px-6">
@@ -35,12 +43,16 @@ export default function DaynaHeader() {
         {/* Mobile Layout */}
         <div className="md:hidden py-3">
           <div className="flex items-end justify-between mb-2">
-            <div>
+            <button
+              onClick={onGoHome}
+              className="text-left hover:opacity-80 transition-opacity focus:outline-none"
+              aria-label="Go to Home"
+            >
               <img src={tymfloLogo} alt="TymFlo Logo" className="h-8" />
               <p className="text-[10px] tymflo-purple font-heading italic mt-0.5 pl-0.5">
-                "Less Work. More Flo."
+                Less Work. More Flo.
               </p>
-            </div>
+            </button>
             <span className="text-[10px] text-gray-400 pb-0.5">Aug 2026</span>
           </div>
           <h1 className="text-sm font-bold text-gray-900 font-heading leading-tight">
